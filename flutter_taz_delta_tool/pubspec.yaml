@@ -1,4 +1,4 @@
-name: flutter_taz_delta_tool
+name: taz_delta_tool
 description: Demonstration of shapefile->geojson usage in Flutter
 
 publish_to: "none"
