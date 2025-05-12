@@ -434,47 +434,55 @@ class _DashboardPageState extends State<DashboardPage> {
   }
 
   /// Creates a bounding box from a single Polygon/MultiPolygon feature.
-  math.Rectangle<double> _boundingBoxFromFeature(dynamic feature) {
+  math.Rectangle<double> _boundingBoxFromFeature(Map<String, dynamic> feature) {
+    final geometry = feature['geometry'] as Map<String, dynamic>?;
+    if (geometry == null) {
+      print(feature);
+      return math.Rectangle<double>(0, 0, 0, 0);
+    }
+
+    final type = geometry['type'] as String?;
+    final coords = geometry['coordinates'] as List<dynamic>?;
+    if (type == null || coords == null) {
+      return math.Rectangle<double>(0, 0, 0, 0);
+    }
+
     double? minLng, minLat, maxLng, maxLat;
-    final geometry = feature['geometry'];
-    final type = geometry['type'];
-    final coords = geometry['coordinates'];
+    void _accumulate(double lng, double lat) {
+      minLng = (minLng == null || lng < minLng!) ? lng : minLng;
+      maxLng = (maxLng == null || lng > maxLng!) ? lng : maxLng;
+      minLat = (minLat == null || lat < minLat!) ? lat : minLat;
+      maxLat = (maxLat == null || lat > maxLat!) ? lat : maxLat;
+    }
 
     if (type == 'Polygon') {
       for (var ring in coords) {
         for (var point in ring) {
-          double lng = (point[0] as num).toDouble();
-          double lat = (point[1] as num).toDouble();
-          if (minLng == null || lng < minLng) minLng = lng;
-          if (maxLng == null || lng > maxLng) maxLng = lng;
-          if (minLat == null || lat < minLat) minLat = lat;
-          if (maxLat == null || lat > maxLat) maxLat = lat;
+          final lng = (point[0] as num).toDouble();
+          final lat = (point[1] as num).toDouble();
+          _accumulate(lng, lat);
         }
       }
     } else if (type == 'MultiPolygon') {
       for (var polygon in coords) {
         for (var ring in polygon) {
           for (var point in ring) {
-            double lng = (point[0] as num).toDouble();
-            double lat = (point[1] as num).toDouble();
-            if (minLng == null || lng < minLng) minLng = lng;
-            if (maxLng == null || lng > maxLng) maxLng = lng;
-            if (minLat == null || lat < minLat) minLat = lat;
-            if (maxLat == null || lat > maxLat) maxLat = lat;
+            final lng = (point[0] as num).toDouble();
+            final lat = (point[1] as num).toDouble();
+            _accumulate(lng, lat);
           }
         }
       }
+    } else {
+      return math.Rectangle<double>(0, 0, 0, 0);
     }
-    minLng ??= 0;
-    minLat ??= 0;
-    maxLng ??= 0;
-    maxLat ??= 0;
-    return math.Rectangle<double>(
-      minLng,
-      minLat,
-      maxLng - minLng,
-      maxLat - minLat,
-    );
+
+    final left   = minLng ?? 0;
+    final bottom = minLat ?? 0;
+    final width  = (maxLng ?? 0) - left;
+    final height = (maxLat ?? 0) - bottom;
+
+    return math.Rectangle<double>(left, bottom, width, height);
   }
 
   /// Runs a search for the Old TAZ ID typed in, setting up the flags and clearing tables.
